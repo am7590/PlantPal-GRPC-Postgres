@@ -3,19 +3,16 @@ package plant;
 
 service PlantService {
     // Insert item
-    rpc Add(Plant) returns (PlantChangeResponse);  // add plant
+    rpc Add(Plant) returns (PlantResponse);  // add plant
 
     // Remove item(s) from the inventory
-    rpc Remove(PlantIdentifier) returns (PlantChangeResponse);  // remove plant
+    rpc Remove(PlantIdentifier) returns (PlantResponse);  // remove plant
 
     // Get item info
     rpc Get(PlantIdentifier) returns (Plant);  // get plant health check/id 
 
     // Increase/decrease an item's stock quantity
-    rpc UpdateQuantity(QuantityChangeRequest) returns (PlantUpdateResponse);  // update plant schedule/health check/id
-
-    // Increase/decrease an item's price
-    rpc UpdatePrice(PriceChangeRequest) returns (PlantUpdateResponse);  // remove
+    rpc UpdatePlant(PlantUpdateRequest) returns (PlantUpdateResponse);  // update plant schedule/health check/id
 
     // Stream Item updates from the inventory
     rpc Watch(PlantIdentifier) returns (stream Plant);  // remove
@@ -23,7 +20,6 @@ service PlantService {
 
 message Plant {
     PlantIdentifier identifier = 1;
-    ItemStock stock = 2;
     optional PlantInformation information = 3;
 }
 
@@ -31,32 +27,20 @@ message PlantIdentifier {
     string sku = 2;
 }
 
-message ItemStock {
-    float price = 1;
-    uint32 quantity = 2;
-}
-
 message PlantInformation {
     optional string name = 1;
     optional string description = 2;
 }
 
-message QuantityChangeRequest {
+message PlantUpdateRequest {
     string sku = 1;
     int32 change = 2;
 }
 
-message PriceChangeRequest {
-    string sku = 1;
-    float price = 2;
-}
-
-message PlantChangeResponse {
+message PlantResponse {
     string status = 1;
 }
 
 message PlantUpdateResponse {
     string status = 1;
-    float price = 2;
-    uint32 quantity = 3;
 }

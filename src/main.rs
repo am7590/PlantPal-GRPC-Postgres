@@ -10,7 +10,7 @@ mod plant_proto {
    include!("plant.rs");
 
    pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
-      tonic::include_file_descriptor_set!("store_descriptor");
+      tonic::include_file_descriptor_set!("plant_descriptor");
 }
 
 #[tokio::main]

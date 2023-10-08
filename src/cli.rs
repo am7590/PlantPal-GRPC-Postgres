@@ -5,8 +5,7 @@ use futures::StreamExt;
 
 use plant::plant_service_client::PlantServiceClient;
 use plant::{
-    Plant, PlantIdentifier, PlantInformation,
-    ItemStock, PriceChangeRequest, QuantityChangeRequest,
+    Plant, PlantIdentifier, PlantInformation, PlantUpdateRequest,
 };
 
 #[derive(Debug, Parser)]
@@ -20,8 +19,7 @@ enum Command {
     Add(AddOptions),
     Remove(RemoveOptions),
     Get(GetOptions),
-    UpdateQuantity(UpdateQuantityOptions),
-    UpdatePrice(UpdatePriceOptions),
+    UpdatePrice(UpdateQuantityOptions),
     Watch(GetOptions),
 }
 
@@ -44,10 +42,10 @@ async fn add(opts: AddOptions) -> Result<(), Box<dyn std::error::Error>> {
 
     let id = PlantIdentifier { sku: opts.sku };
 
-    let stock = ItemStock {
-        price: opts.price,
-        quantity: opts.quantity,
-    };
+    // let stock = ItemStock {
+    //     price: opts.price,
+    //     quantity: opts.quantity,
+    // };
 
     let info = PlantInformation {
         name: opts.name,
@@ -56,7 +54,7 @@ async fn add(opts: AddOptions) -> Result<(), Box<dyn std::error::Error>> {
 
     let item = Plant {
         identifier: Some(id),
-        stock: Some(stock),
+        // stock: Some(stock),
         information: Some(info),
     };
 
@@ -110,49 +108,48 @@ struct UpdateQuantityOptions {
     change: i32,
 }
 
-async fn update_quantity(opts: UpdateQuantityOptions) -> Result<(), Box<dyn std::error::Error>> {
+async fn update_plant(opts: UpdateQuantityOptions) -> Result<(), Box<dyn std::error::Error>> {
     let mut client = PlantServiceClient::connect("http://127.0.0.1:9001").await?;
 
-    let request = tonic::Request::new(QuantityChangeRequest {
+    let request = tonic::Request::new(PlantUpdateRequest {
         sku: opts.sku,
         change: opts.change,
     });
 
-    let message = client.update_quantity(request).await?.into_inner();
+    let message = client.update_plant(request).await?.into_inner();
     assert_eq!(message.status, "success");
     println!(
-        "success: quantity was updated. Quantity: {} Price: {}",
-        message.quantity, message.price
+        "success: plant was updated.",
     );
 
     Ok(())
 }
 
-#[derive(Debug, Parser)]
-struct UpdatePriceOptions {
-    #[clap(long)]
-    sku: String,
-    #[clap(long)]
-    price: f32,
-}
+// #[derive(Debug, Parser)]
+// struct UpdatePriceOptions {
+//     #[clap(long)]
+//     sku: String,
+//     #[clap(long)]
+//     price: f32,
+// }
 
-async fn update_price(opts: UpdatePriceOptions) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = PlantServiceClient::connect("http://127.0.0.1:9001").await?;
+// async fn update_plant(opts: UpdatePriceOptions) -> Result<(), Box<dyn std::error::Error>> {
+//     let mut client = PlantServiceClient::connect("http://127.0.0.1:9001").await?;
 
-    let request = tonic::Request::new(PriceChangeRequest {
-        sku: opts.sku,
-        price: opts.price,
-    });
+//     let request = tonic::Request::new(PlantUpdateRequest {
+//         sku: opts.sku,
+//         change: opts.price,
+//     });
 
-    let message = client.update_price(request).await?.into_inner();
-    assert_eq!(message.status, "success");
-    println!(
-        "success: price was updated. Quantity: {} Price: {}",
-        message.quantity, message.price
-    );
+//     let message = client.update_price(request).await?.into_inner();
+//     assert_eq!(message.status, "success");
+//     println!(
+//         "success: price was updated. Quantity: {} Price: {}",
+//         message.quantity, message.price
+//     );
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 async fn watch(opts: GetOptions) -> Result<(), Box<dyn std::error::Error>> {
     let mut client = PlantServiceClient::connect("http://127.0.0.1:9001").await?;
@@ -192,8 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Add(opts) => add(opts).await?,
         Remove(opts) => remove(opts).await?,
         Get(opts) => get(opts).await?,
-        UpdateQuantity(opts) => update_quantity(opts).await?,
-        UpdatePrice(opts) => update_price(opts).await?,
+        UpdatePrice(opts) => update_plant(opts).await?,
         Watch(opts) => watch(opts).await?,
     };
 

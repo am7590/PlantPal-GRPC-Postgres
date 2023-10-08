@@ -7,21 +7,18 @@ use tokio::sync::{mpsc, Mutex};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::{Request, Response, Status};
 
+mod push;
+
 use crate::plant::plant_service_server::PlantService;
 use crate::plant::{
-    PlantChangeResponse, PlantUpdateResponse, Plant, PlantIdentifier, PriceChangeRequest,
-    QuantityChangeRequest,
+    PlantResponse, PlantUpdateResponse, Plant, PlantIdentifier, PlantUpdateRequest,
 };
 
-const BAD_PRICE_ERR: &str = "provided PRICE was invalid";
-const DUP_PRICE_ERR: &str = "item is already at this price";
-const DUP_ITEM_ERR: &str = "item already exists in inventory";
-const EMPTY_QUANT_ERR: &str = "invalid quantity of 0 provided";
+const DUP_ITEM_ERR: &str = "plant already exists";
 const EMPTY_SKU_ERR: &str = "provided SKU was empty";
-const NO_ID_ERR: &str = "no ID or SKU provided for item";
+const NO_ID_ERR: &str = "no ID or SKU provided for plant";
 const NO_ITEM_ERR: &str = "the item requested was not found";
-const NO_STOCK_ERR: &str = "no stock provided for item";
-const UNSUFF_INV_ERR: &str = "not enough inventory for quantity change";
+const WOMP_ERR: &str = "womp womp...";
 
 #[derive(Debug)]
 pub struct StorePlant {
@@ -41,7 +38,7 @@ impl PlantService for StorePlant {
     async fn add(
         &self,
         request: Request<Plant>,
-    ) -> Result<Response<PlantChangeResponse>, Status> {
+    ) -> Result<Response<PlantResponse>, Status> {
         let item = request.into_inner();
 
         // Validate SKU, verify it's present/not empty
@@ -52,13 +49,13 @@ impl PlantService for StorePlant {
         };
 
         // Validate stock, verify its present and price != negative value
-        match item.stock.as_ref() {
-            Some(stock) if stock.price <= 0.00 => {
-                return Err(Status::invalid_argument(BAD_PRICE_ERR))
-            }
-            Some(_) => {}
-            None => return Err(Status::invalid_argument(NO_STOCK_ERR)),
-        };
+        // match item.stock.as_ref() {
+        //     Some(stock) if stock.price <= 0.00 => {
+        //         return Err(Status::invalid_argument(BAD_PRICE_ERR))
+        //     }
+        //     Some(_) => {}
+        //     None => return Err(Status::invalid_argument(NO_STOCK_ERR)),
+        // };
 
         // Don't allow dupliacte items
         let mut map = self.plant.lock().await;
@@ -71,7 +68,9 @@ impl PlantService for StorePlant {
 
         println!("Add item");
 
-        Ok(Response::new(PlantChangeResponse {
+        let _ = push::apns::run().await;
+
+        Ok(Response::new(PlantResponse {
             status: "success".into(),
         }))
     }
@@ -79,7 +78,7 @@ impl PlantService for StorePlant {
     async fn remove(
         &self,
         request: Request<PlantIdentifier>,
-    ) -> Result<Response<PlantChangeResponse>, Status> {
+    ) -> Result<Response<PlantResponse>, Status> {
         let identifier = request.into_inner();
 
         // guard against empty SKU
@@ -94,7 +93,7 @@ impl PlantService for StorePlant {
             None => "success: item didn't exist",
         };
 
-        Ok(Response::new(PlantChangeResponse {
+        Ok(Response::new(PlantResponse {
             status: msg.into(),
         }))
     }
@@ -117,57 +116,57 @@ impl PlantService for StorePlant {
         Ok(Response::new(item.clone()))
     }
 
-    async fn update_quantity(
+    // async fn update_quantity(
+    //     &self,
+    //     request: Request<QuantityChangeRequest>,
+    // ) -> Result<Response<PlantUpdateResponse>, Status> {
+    //     let change = request.into_inner();
+
+    //     // guard against empty sku
+    //     if change.sku == "" {
+    //         return Err(Status::invalid_argument(EMPTY_SKU_ERR));
+    //     }
+
+    //     // guard against no change
+    //     if change.change == 0 {
+    //         return Err(Status::invalid_argument(EMPTY_QUANT_ERR));
+    //     }
+
+    //     // get item data
+    //     let mut map = self.plant.lock().await;
+    //     let item = match map.get_mut(&change.sku) {
+    //         Some(item) => item,
+    //         None => return Err(Status::not_found(NO_ITEM_ERR)),
+    //     };
+
+    //     // get stock mutable to update quantity
+    //     let mut stock = match item.stock.borrow_mut() {
+    //         Some(stock) => stock,
+    //         None => return Err(Status::internal(NO_STOCK_ERR)),
+    //     };
+
+    //     // validate and handle quantity change
+    //     stock.quantity = match change.change {
+    //         change if change < 0 => {
+    //             if change.abs() as u32 > stock.quantity {
+    //                 return Err(Status::resource_exhausted(UNSUFF_INV_ERR));
+    //             }
+    //             stock.quantity - change.abs() as u32
+    //         }
+
+    //         change => stock.quantity + change as u32,
+    //     };
+
+    //     Ok(Response::new(PlantUpdateResponse {
+    //         status: "success".into(),
+    //         price: stock.price,
+    //         quantity: stock.quantity,
+    //     }))
+    // }
+
+    async fn update_plant(
         &self,
-        request: Request<QuantityChangeRequest>,
-    ) -> Result<Response<PlantUpdateResponse>, Status> {
-        let change = request.into_inner();
-
-        // guard against empty sku
-        if change.sku == "" {
-            return Err(Status::invalid_argument(EMPTY_SKU_ERR));
-        }
-
-        // guard against no change
-        if change.change == 0 {
-            return Err(Status::invalid_argument(EMPTY_QUANT_ERR));
-        }
-
-        // get item data
-        let mut map = self.plant.lock().await;
-        let item = match map.get_mut(&change.sku) {
-            Some(item) => item,
-            None => return Err(Status::not_found(NO_ITEM_ERR)),
-        };
-
-        // get stock mutable to update quantity
-        let mut stock = match item.stock.borrow_mut() {
-            Some(stock) => stock,
-            None => return Err(Status::internal(NO_STOCK_ERR)),
-        };
-
-        // validate and handle quantity change
-        stock.quantity = match change.change {
-            change if change < 0 => {
-                if change.abs() as u32 > stock.quantity {
-                    return Err(Status::resource_exhausted(UNSUFF_INV_ERR));
-                }
-                stock.quantity - change.abs() as u32
-            }
-
-            change => stock.quantity + change as u32,
-        };
-
-        Ok(Response::new(PlantUpdateResponse {
-            status: "success".into(),
-            price: stock.price,
-            quantity: stock.quantity,
-        }))
-    }
-
-    async fn update_price(
-        &self,
-        request: Request<PriceChangeRequest>,
+        request: Request<PlantUpdateRequest>,
     ) -> Result<Response<PlantUpdateResponse>, Status> {
         let change = request.into_inner();
 
@@ -177,9 +176,9 @@ impl PlantService for StorePlant {
         }
 
         // guard against 0 or negative price change
-        if change.price <= 0.0 {
-            return Err(Status::invalid_argument(BAD_PRICE_ERR));
-        }
+        // if change.price <= 0.0 {
+        //     return Err(Status::invalid_argument(BAD_PRICE_ERR));
+        // }
 
         // get item data
         let mut map = self.plant.lock().await;
@@ -189,22 +188,20 @@ impl PlantService for StorePlant {
         };
 
         // get stock mutable to update quantity
-        let mut stock = match item.stock.borrow_mut() {
+        let mut stock = match item.identifier.borrow_mut() {
             Some(stock) => stock,
-            None => return Err(Status::internal(NO_STOCK_ERR)),
+            None => return Err(Status::internal(WOMP_ERR)),
         };
 
         // guard against changing the price to current price
-        if stock.price == change.price {
-            return Err(Status::invalid_argument(DUP_PRICE_ERR));
-        }
+        // if stock.price == change.price {
+        //     return Err(Status::invalid_argument(DUP_PRICE_ERR));
+        // }
 
-        stock.price = change.price;
+        // stock.price = change.price;
 
         Ok(Response::new(PlantUpdateResponse {
             status: "success".into(),
-            price: stock.price,
-            quantity: stock.quantity,
         }))
     }
 

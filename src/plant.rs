@@ -3,8 +3,6 @@
 pub struct Plant {
     #[prost(message, optional, tag = "1")]
     pub identifier: ::core::option::Option<PlantIdentifier>,
-    #[prost(message, optional, tag = "2")]
-    pub stock: ::core::option::Option<ItemStock>,
     #[prost(message, optional, tag = "3")]
     pub information: ::core::option::Option<PlantInformation>,
 }
@@ -16,14 +14,6 @@ pub struct PlantIdentifier {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ItemStock {
-    #[prost(float, tag = "1")]
-    pub price: f32,
-    #[prost(uint32, tag = "2")]
-    pub quantity: u32,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlantInformation {
     #[prost(string, optional, tag = "1")]
     pub name: ::core::option::Option<::prost::alloc::string::String>,
@@ -32,7 +22,7 @@ pub struct PlantInformation {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct QuantityChangeRequest {
+pub struct PlantUpdateRequest {
     #[prost(string, tag = "1")]
     pub sku: ::prost::alloc::string::String,
     #[prost(int32, tag = "2")]
@@ -40,15 +30,7 @@ pub struct QuantityChangeRequest {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PriceChangeRequest {
-    #[prost(string, tag = "1")]
-    pub sku: ::prost::alloc::string::String,
-    #[prost(float, tag = "2")]
-    pub price: f32,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PlantChangeResponse {
+pub struct PlantResponse {
     #[prost(string, tag = "1")]
     pub status: ::prost::alloc::string::String,
 }
@@ -57,10 +39,6 @@ pub struct PlantChangeResponse {
 pub struct PlantUpdateResponse {
     #[prost(string, tag = "1")]
     pub status: ::prost::alloc::string::String,
-    #[prost(float, tag = "2")]
-    pub price: f32,
-    #[prost(uint32, tag = "3")]
-    pub quantity: u32,
 }
 /// Generated client implementations.
 pub mod plant_service_client {
@@ -135,7 +113,7 @@ pub mod plant_service_client {
         pub async fn add(
             &mut self,
             request: impl tonic::IntoRequest<super::Plant>,
-        ) -> Result<tonic::Response<super::PlantChangeResponse>, tonic::Status> {
+        ) -> Result<tonic::Response<super::PlantResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -153,7 +131,7 @@ pub mod plant_service_client {
         pub async fn remove(
             &mut self,
             request: impl tonic::IntoRequest<super::PlantIdentifier>,
-        ) -> Result<tonic::Response<super::PlantChangeResponse>, tonic::Status> {
+        ) -> Result<tonic::Response<super::PlantResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -188,9 +166,9 @@ pub mod plant_service_client {
             self.inner.unary(request.into_request(), path, codec).await
         }
         /// Increase/decrease an item's stock quantity
-        pub async fn update_quantity(
+        pub async fn update_plant(
             &mut self,
-            request: impl tonic::IntoRequest<super::QuantityChangeRequest>,
+            request: impl tonic::IntoRequest<super::PlantUpdateRequest>,
         ) -> Result<tonic::Response<super::PlantUpdateResponse>, tonic::Status> {
             self.inner
                 .ready()
@@ -203,27 +181,7 @@ pub mod plant_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/plant.PlantService/UpdateQuantity",
-            );
-            self.inner.unary(request.into_request(), path, codec).await
-        }
-        /// Increase/decrease an item's price
-        pub async fn update_price(
-            &mut self,
-            request: impl tonic::IntoRequest<super::PriceChangeRequest>,
-        ) -> Result<tonic::Response<super::PlantUpdateResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/plant.PlantService/UpdatePrice",
+                "/plant.PlantService/UpdatePlant",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
@@ -261,26 +219,21 @@ pub mod plant_service_server {
         async fn add(
             &self,
             request: tonic::Request<super::Plant>,
-        ) -> Result<tonic::Response<super::PlantChangeResponse>, tonic::Status>;
+        ) -> Result<tonic::Response<super::PlantResponse>, tonic::Status>;
         /// Remove item(s) from the inventory
         async fn remove(
             &self,
             request: tonic::Request<super::PlantIdentifier>,
-        ) -> Result<tonic::Response<super::PlantChangeResponse>, tonic::Status>;
+        ) -> Result<tonic::Response<super::PlantResponse>, tonic::Status>;
         /// Get item info
         async fn get(
             &self,
             request: tonic::Request<super::PlantIdentifier>,
         ) -> Result<tonic::Response<super::Plant>, tonic::Status>;
         /// Increase/decrease an item's stock quantity
-        async fn update_quantity(
+        async fn update_plant(
             &self,
-            request: tonic::Request<super::QuantityChangeRequest>,
-        ) -> Result<tonic::Response<super::PlantUpdateResponse>, tonic::Status>;
-        /// Increase/decrease an item's price
-        async fn update_price(
-            &self,
-            request: tonic::Request<super::PriceChangeRequest>,
+            request: tonic::Request<super::PlantUpdateRequest>,
         ) -> Result<tonic::Response<super::PlantUpdateResponse>, tonic::Status>;
         /// Server streaming response type for the Watch method.
         type WatchStream: futures_core::Stream<
@@ -358,7 +311,7 @@ pub mod plant_service_server {
                     struct AddSvc<T: PlantService>(pub Arc<T>);
                     impl<T: PlantService> tonic::server::UnaryService<super::Plant>
                     for AddSvc<T> {
-                        type Response = super::PlantChangeResponse;
+                        type Response = super::PlantResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
@@ -396,7 +349,7 @@ pub mod plant_service_server {
                         T: PlantService,
                     > tonic::server::UnaryService<super::PlantIdentifier>
                     for RemoveSvc<T> {
-                        type Response = super::PlantChangeResponse;
+                        type Response = super::PlantResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
@@ -464,13 +417,13 @@ pub mod plant_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/plant.PlantService/UpdateQuantity" => {
+                "/plant.PlantService/UpdatePlant" => {
                     #[allow(non_camel_case_types)]
-                    struct UpdateQuantitySvc<T: PlantService>(pub Arc<T>);
+                    struct UpdatePlantSvc<T: PlantService>(pub Arc<T>);
                     impl<
                         T: PlantService,
-                    > tonic::server::UnaryService<super::QuantityChangeRequest>
-                    for UpdateQuantitySvc<T> {
+                    > tonic::server::UnaryService<super::PlantUpdateRequest>
+                    for UpdatePlantSvc<T> {
                         type Response = super::PlantUpdateResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
@@ -478,11 +431,11 @@ pub mod plant_service_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::QuantityChangeRequest>,
+                            request: tonic::Request<super::PlantUpdateRequest>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move {
-                                (*inner).update_quantity(request).await
+                                (*inner).update_plant(request).await
                             };
                             Box::pin(fut)
                         }
@@ -492,47 +445,7 @@ pub mod plant_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = UpdateQuantitySvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/plant.PlantService/UpdatePrice" => {
-                    #[allow(non_camel_case_types)]
-                    struct UpdatePriceSvc<T: PlantService>(pub Arc<T>);
-                    impl<
-                        T: PlantService,
-                    > tonic::server::UnaryService<super::PriceChangeRequest>
-                    for UpdatePriceSvc<T> {
-                        type Response = super::PlantUpdateResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::PriceChangeRequest>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).update_price(request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = UpdatePriceSvc(inner);
+                        let method = UpdatePlantSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

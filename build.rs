@@ -9,7 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .protoc_arg("--experimental_allow_proto3_optional")  // for older systems
         .build_client(true)
 	.build_server(true)
-	.file_descriptor_set_path(out_dir.join("store_descriptor.bin"))
+	.file_descriptor_set_path(out_dir.join("plant_descriptor.bin"))
 	.out_dir("./src")
 	.compile(&[proto_file], &["proto"])?;
 
