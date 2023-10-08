@@ -1,13 +1,13 @@
 use tonic::transport::Server;
 
-use server::StoreInventory;
-use store::inventory_server::InventoryServer;
+use server::StorePlant;
+use plant::plant_service_server::PlantServiceServer;
 
 pub mod server;
-pub mod store;
+pub mod plant;
 
-mod store_proto {
-   include!("store.rs");
+mod plant_proto {
+   include!("plant.rs");
 
    pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
       tonic::include_file_descriptor_set!("store_descriptor");
@@ -16,15 +16,15 @@ mod store_proto {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
    let addr = "127.0.0.1:9001".parse()?;
-   let inventory = StoreInventory::default();
+   let inventory = StorePlant::default();
 
    let reflection_service = tonic_reflection::server::Builder::configure()
-           .register_encoded_file_descriptor_set(store_proto::FILE_DESCRIPTOR_SET)
+           .register_encoded_file_descriptor_set(plant_proto::FILE_DESCRIPTOR_SET)
            .build()
            .unwrap();
 
    Server::builder()
-           .add_service(InventoryServer::new(inventory))
+           .add_service(PlantServiceServer::new(inventory))
            .add_service(reflection_service)
            .serve(addr)
            .await?;

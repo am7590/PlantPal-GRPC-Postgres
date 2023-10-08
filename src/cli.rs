@@ -1,11 +1,11 @@
-pub mod store;
+pub mod plant;
 
 use clap::Parser;
 use futures::StreamExt;
 
-use store::inventory_client::InventoryClient;
-use store::{
-    Item, ItemIdentifier, ItemInformation,
+use plant::plant_service_client::PlantServiceClient;
+use plant::{
+    Plant, PlantIdentifier, PlantInformation,
     ItemStock, PriceChangeRequest, QuantityChangeRequest,
 };
 
@@ -40,21 +40,21 @@ struct AddOptions {
 }
 
 async fn add(opts: AddOptions) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = InventoryClient::connect("http://127.0.0.1:9001").await?;
+    let mut client = PlantServiceClient::connect("http://127.0.0.1:9001").await?;
 
-    let id = ItemIdentifier { sku: opts.sku };
+    let id = PlantIdentifier { sku: opts.sku };
 
     let stock = ItemStock {
         price: opts.price,
         quantity: opts.quantity,
     };
 
-    let info = ItemInformation {
+    let info = PlantInformation {
         name: opts.name,
         description: opts.description,
     };
 
-    let item = Item {
+    let item = Plant {
         identifier: Some(id),
         stock: Some(stock),
         information: Some(info),
@@ -75,9 +75,9 @@ struct RemoveOptions {
 }
 
 async fn remove(opts: RemoveOptions) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = InventoryClient::connect("http://127.0.0.1:9001").await?;
+    let mut client = PlantServiceClient::connect("http://127.0.0.1:9001").await?;
 
-    let request = tonic::Request::new(ItemIdentifier { sku: opts.sku });
+    let request = tonic::Request::new(PlantIdentifier { sku: opts.sku });
     let response = client.remove(request).await?;
     let msg = response.into_inner().status;
     assert!(msg.starts_with("success"));
@@ -93,9 +93,9 @@ struct GetOptions {
 }
 
 async fn get(opts: GetOptions) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = InventoryClient::connect("http://127.0.0.1:9001").await?;
+    let mut client = PlantServiceClient::connect("http://127.0.0.1:9001").await?;
 
-    let request = tonic::Request::new(ItemIdentifier { sku: opts.sku });
+    let request = tonic::Request::new(PlantIdentifier { sku: opts.sku });
     let item = client.get(request).await?.into_inner();
     println!("found item: {:?}", item);
 
@@ -111,7 +111,7 @@ struct UpdateQuantityOptions {
 }
 
 async fn update_quantity(opts: UpdateQuantityOptions) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = InventoryClient::connect("http://127.0.0.1:9001").await?;
+    let mut client = PlantServiceClient::connect("http://127.0.0.1:9001").await?;
 
     let request = tonic::Request::new(QuantityChangeRequest {
         sku: opts.sku,
@@ -137,7 +137,7 @@ struct UpdatePriceOptions {
 }
 
 async fn update_price(opts: UpdatePriceOptions) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = InventoryClient::connect("http://127.0.0.1:9001").await?;
+    let mut client = PlantServiceClient::connect("http://127.0.0.1:9001").await?;
 
     let request = tonic::Request::new(PriceChangeRequest {
         sku: opts.sku,
@@ -155,10 +155,10 @@ async fn update_price(opts: UpdatePriceOptions) -> Result<(), Box<dyn std::error
 }
 
 async fn watch(opts: GetOptions) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = InventoryClient::connect("http://127.0.0.1:9001").await?;
+    let mut client = PlantServiceClient::connect("http://127.0.0.1:9001").await?;
 
     let mut stream = client
-        .watch(ItemIdentifier {
+        .watch(PlantIdentifier {
             sku: opts.sku.clone(),
         })
         .await?
