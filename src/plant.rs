@@ -17,8 +17,12 @@ pub struct PlantIdentifier {
 pub struct PlantInformation {
     #[prost(string, optional, tag = "1")]
     pub name: ::core::option::Option<::prost::alloc::string::String>,
-    #[prost(string, optional, tag = "2")]
-    pub description: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(int64, optional, tag = "2")]
+    pub last_watered: ::core::option::Option<i64>,
+    #[prost(int64, optional, tag = "3")]
+    pub last_health_check: ::core::option::Option<i64>,
+    #[prost(int64, optional, tag = "4")]
+    pub last_identification: ::core::option::Option<i64>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -185,27 +189,6 @@ pub mod plant_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Stream Item updates from the inventory
-        pub async fn watch(
-            &mut self,
-            request: impl tonic::IntoRequest<super::PlantIdentifier>,
-        ) -> Result<
-            tonic::Response<tonic::codec::Streaming<super::Plant>>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/plant.PlantService/Watch");
-            self.inner.server_streaming(request.into_request(), path, codec).await
-        }
     }
 }
 /// Generated server implementations.
@@ -235,17 +218,6 @@ pub mod plant_service_server {
             &self,
             request: tonic::Request<super::PlantUpdateRequest>,
         ) -> Result<tonic::Response<super::PlantUpdateResponse>, tonic::Status>;
-        /// Server streaming response type for the Watch method.
-        type WatchStream: futures_core::Stream<
-                Item = Result<super::Plant, tonic::Status>,
-            >
-            + Send
-            + 'static;
-        /// Stream Item updates from the inventory
-        async fn watch(
-            &self,
-            request: tonic::Request<super::PlantIdentifier>,
-        ) -> Result<tonic::Response<Self::WatchStream>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct PlantServiceServer<T: PlantService> {
@@ -453,45 +425,6 @@ pub mod plant_service_server {
                                 send_compression_encodings,
                             );
                         let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/plant.PlantService/Watch" => {
-                    #[allow(non_camel_case_types)]
-                    struct WatchSvc<T: PlantService>(pub Arc<T>);
-                    impl<
-                        T: PlantService,
-                    > tonic::server::ServerStreamingService<super::PlantIdentifier>
-                    for WatchSvc<T> {
-                        type Response = super::Plant;
-                        type ResponseStream = T::WatchStream;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::ResponseStream>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::PlantIdentifier>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move { (*inner).watch(request).await };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = WatchSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
-                        let res = grpc.server_streaming(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
