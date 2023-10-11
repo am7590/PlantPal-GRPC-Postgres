@@ -24,7 +24,7 @@ clap = { version = "4.1.4", features = ["derive"] }
 tonic-reflection = "0.6.0"
 a2 = "0.7.1"
 hyper = { version = "0.14.27", features = ["client", "http2", "tcp"] }
-sqlx = { version = "0.7.2", features = ["runtime-tokio", "time", "postgres"] }
+sqlx = { version = "0.7.2", features = ["runtime-tokio", "time", "postgres", "tls-rustls"] }
 sqlx-core = { version = "0.7.2", features = ["time"] }
 sqlx-postgres = { version = "0.7.2", features = ["time"] }
 dotenv = "0.15"
