@@ -18,8 +18,7 @@ mod plant_proto {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
    dotenv().ok();
    let addr = "127.0.0.1:9001".parse()?;
-   let database_url = "postgres://odketbknkrveew:265f2a852242377ba006b0f6250ed8fbf27c0c7bf1ee1a352835c9f3a7e85646@ec2-44-213-228-107.compute-1.amazonaws.com:5432/d96remn27v216p
-   ";
+   let database_url = "postgres://ztrdkufeonducd:2e5880a3b5d3a7b5af08f115caad38ba2c37e22cb394808c8583b157db106e80@ec2-34-202-53-101.compute-1.amazonaws.com:5432/dancbqcggc4md3";
    let inventory = StorePlant::new(database_url).await?;
 
    let reflection_service = tonic_reflection::server::Builder::configure()

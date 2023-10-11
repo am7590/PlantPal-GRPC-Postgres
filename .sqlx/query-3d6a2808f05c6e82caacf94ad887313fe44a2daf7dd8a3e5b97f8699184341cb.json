@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM plants WHERE sku = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sku",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "last_watered",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_health_check",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "last_identification",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "3d6a2808f05c6e82caacf94ad887313fe44a2daf7dd8a3e5b97f8699184341cb"
+}

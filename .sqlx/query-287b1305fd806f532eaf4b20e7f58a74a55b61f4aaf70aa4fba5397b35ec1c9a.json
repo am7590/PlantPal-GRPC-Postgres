@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE plants SET last_watered = $1, last_health_check = $2, last_identification = $3 WHERE sku = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "287b1305fd806f532eaf4b20e7f58a74a55b61f4aaf70aa4fba5397b35ec1c9a"
+}

@@ -27,10 +27,10 @@ pub struct PlantInformation {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlantUpdateRequest {
-    #[prost(string, tag = "1")]
-    pub sku: ::prost::alloc::string::String,
-    #[prost(int32, tag = "2")]
-    pub change: i32,
+    #[prost(message, optional, tag = "1")]
+    pub identifier: ::core::option::Option<PlantIdentifier>,
+    #[prost(message, optional, tag = "2")]
+    pub information: ::core::option::Option<PlantInformation>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
