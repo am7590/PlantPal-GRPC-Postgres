@@ -29,6 +29,7 @@ sqlx-core = { version = "0.7.2", features = ["time"] }
 sqlx-postgres = { version = "0.7.2", features = ["time"] }
 dotenv = "0.15"
 chrono = { version = "0.4.23", features = ["serde"] }
+futures-util = "0.3"
 
 [build-dependencies]
 tonic-build = "0.8"

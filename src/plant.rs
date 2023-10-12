@@ -44,6 +44,12 @@ pub struct PlantUpdateResponse {
     #[prost(string, tag = "1")]
     pub status: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListOfPlants {
+    #[prost(message, repeated, tag = "1")]
+    pub plants: ::prost::alloc::vec::Vec<Plant>,
+}
 /// Generated client implementations.
 pub mod plant_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -151,7 +157,7 @@ pub mod plant_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Get item info
+        /// Get a singular item's info
         pub async fn get(
             &mut self,
             request: impl tonic::IntoRequest<super::PlantIdentifier>,
@@ -167,6 +173,26 @@ pub mod plant_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/plant.PlantService/Get");
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        /// / Get a list of plants that need to be watered
+        pub async fn get_watered(
+            &mut self,
+            request: impl tonic::IntoRequest<()>,
+        ) -> Result<tonic::Response<super::ListOfPlants>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/plant.PlantService/GetWatered",
+            );
             self.inner.unary(request.into_request(), path, codec).await
         }
         /// Increase/decrease an item's stock quantity
@@ -208,11 +234,16 @@ pub mod plant_service_server {
             &self,
             request: tonic::Request<super::PlantIdentifier>,
         ) -> Result<tonic::Response<super::PlantResponse>, tonic::Status>;
-        /// Get item info
+        /// Get a singular item's info
         async fn get(
             &self,
             request: tonic::Request<super::PlantIdentifier>,
         ) -> Result<tonic::Response<super::Plant>, tonic::Status>;
+        /// / Get a list of plants that need to be watered
+        async fn get_watered(
+            &self,
+            request: tonic::Request<()>,
+        ) -> Result<tonic::Response<super::ListOfPlants>, tonic::Status>;
         /// Increase/decrease an item's stock quantity
         async fn update_plant(
             &self,
@@ -378,6 +409,39 @@ pub mod plant_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = GetSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/plant.PlantService/GetWatered" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetWateredSvc<T: PlantService>(pub Arc<T>);
+                    impl<T: PlantService> tonic::server::UnaryService<()>
+                    for GetWateredSvc<T> {
+                        type Response = super::ListOfPlants;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(&mut self, request: tonic::Request<()>) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).get_watered(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetWateredSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

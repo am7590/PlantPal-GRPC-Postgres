@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM plants WHERE last_watered < $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sku",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "last_watered",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_health_check",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "last_identification",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "93bd341ba2b3430494a713b1c19837aaef97db6a359f082333f1e47cb71ac352"
+}

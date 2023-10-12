@@ -1,4 +1,5 @@
 use futures::Stream;
+use futures_util::io::Empty;
 use sqlx_postgres::{PgPool, PgPoolOptions};
 use std::borrow::BorrowMut;
 use std::pin::Pin;
@@ -8,7 +9,7 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::{Request, Response, Status};
 use sqlx;
 use chrono::{DateTime, TimeZone, Utc};
-use crate::plant::PlantInformation;
+use crate::plant::{PlantInformation, ListOfPlants, self};
 
 
 mod push;
@@ -179,4 +180,56 @@ impl PlantService for StorePlant {
             Err(err) => Err(Status::internal(format!("Failed to update plant in the database: {}", err))),
         }
     }
+
+
+    async fn get_watered(
+        &self,
+        _request: Request<()>,
+    ) -> Result<Response<ListOfPlants>, Status> {
+        let current_date = chrono::Utc::now().date();
+        let int64_current_date = current_date.and_hms(0, 0, 0).timestamp();
+    
+        let result = sqlx::query!(
+            "SELECT * FROM plants WHERE last_watered < $1",
+            int64_current_date,
+        )
+        .fetch_all(&self.pool)
+        .await;
+    
+        match result {
+            Ok(rows) => {
+                let plants = rows
+                    .into_iter()
+                    .map(|row| {
+                        let sku = row.sku.ok_or(Status::internal("Missing SKU"))?;
+                        let name = row.name; //.ok_or(Status::internal("Missing name"))?;
+                        let last_watered = row.last_watered; //.ok_or(Status::internal("Missing last_watered"))?;
+                        let last_health_check = row.last_health_check; //.ok_or(Status::internal("Missing last_health_check"))?;
+                        let last_identification = row.last_identification; //.ok_or(Status::internal("Missing last_identification"))?;
+
+                        Ok::<_, Status>(Plant {
+                            identifier: Some(PlantIdentifier { sku }),
+                            information: Some(PlantInformation {
+                                name,
+                                last_watered,
+                                last_health_check,
+                                last_identification,
+                            }),
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+
+    
+                let list_of_plants = ListOfPlants { plants };
+    
+                Ok(Response::new(list_of_plants))
+            }
+            Err(err) => Err(Status::internal(format!(
+                "Failed to get plants from the database: {}",
+                err
+            ))),
+        }
+    }
+    
+
 }

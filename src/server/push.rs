@@ -2,14 +2,6 @@
 pub mod apns {
     use std::fs::File;
     use a2::{NotificationOptions, DefaultNotificationBuilder, NotificationBuilder, Client, Endpoint};
-    use tokio::runtime::Builder;
-
-    // pub fn push() -> Result<(), Box<dyn std::error::Error>> {
-    //     let rt = Builder::new_current_thread()
-    //      .enable_all()
-    //      .build()?;
-    //     rt.block_on(run())
-    // }
 
     pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         println!("Pushing him...");
