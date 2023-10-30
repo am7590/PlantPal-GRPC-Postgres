@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM plants WHERE last_watered < $1",
+  "query": "SELECT * FROM plants WHERE last_watered <= $1",
   "describe": {
     "columns": [
       {
@@ -42,5 +42,5 @@
       true
     ]
   },
-  "hash": "93bd341ba2b3430494a713b1c19837aaef97db6a359f082333f1e47cb71ac352"
+  "hash": "72331b6746401aac8c7940bb554f221ff0ab754c19aff52869b7e0a82128e7c6"
 }

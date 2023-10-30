@@ -19,6 +19,7 @@ service PlantService {
     rpc UpdatePlant(PlantUpdateRequest) returns (PlantUpdateResponse);  // update plant schedule/health check/id
 }
 
+// TODO: get user device ID; push token
 message Plant {
     PlantIdentifier identifier = 1;
     optional PlantInformation information = 3;
@@ -33,6 +34,7 @@ message PlantInformation {
     optional int64 lastWatered = 2;
     optional int64 lastHealthCheck = 3;
     optional int64 lastIdentification = 4;
+    optional string deviceIdentifier = 5;
 }
 
 message PlantUpdateRequest {
