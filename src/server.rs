@@ -56,6 +56,12 @@ impl PlantService for StorePlant {
             None => return Err(Status::invalid_argument(NO_ID_ERR)),
         };
 
+        let device_identifier: String = match item.identifier.as_ref() {
+            Some(id) if id.device_identifier == "" => return Err(Status::invalid_argument(EMPTY_SKU_ERR)),
+            Some(id) => id.device_identifier.to_owned(),
+            None => return Err(Status::invalid_argument(NO_ID_ERR)),
+        };
+
         // TODO: check for dups
 
         let information = item.information.ok_or(Status::invalid_argument("Missing information"))?;
@@ -65,10 +71,10 @@ impl PlantService for StorePlant {
         let last_identification = information.last_identification;
 
         let result = sqlx::query!(
-            "
-            INSERT INTO plants (sku, name, last_watered, last_health_check, last_identification) VALUES ($1, $2, $3, $4, $5)
+            "INSERT INTO plants (sku, device_identifier, name, last_watered, last_health_check, last_identification) VALUES ($1, $2, $3, $4, $5, $6)
             ",
             sku,
+            device_identifier,
             name,
             last_watered,
             last_health_check,
@@ -118,6 +124,7 @@ impl PlantService for StorePlant {
     async fn get(&self, request: Request<PlantIdentifier>) -> Result<Response<Plant>, Status> {
         let identifier = request.into_inner();
         let sku = identifier.sku;
+        let device_identifier = identifier.device_identifier;
 
         let result = sqlx::query!(
             "SELECT * FROM plants WHERE sku = $1",
@@ -129,7 +136,7 @@ impl PlantService for StorePlant {
         match result {
             Ok(row) => {
                 let plant = Plant {
-                    identifier: Some(PlantIdentifier { sku }),
+                    identifier: Some(PlantIdentifier { sku, device_identifier }),
                     information: Some(PlantInformation {
                         name: row.name,
                         last_watered: row.last_watered,
@@ -209,6 +216,7 @@ impl PlantService for StorePlant {
                     .into_iter()
                     .map(|row| {
                         let sku = row.sku.ok_or(Status::internal("Missing SKU"))?;
+                        let device_identifier = row.device_identifier.ok_or(Status::internal("Missing Device ID"))?;
                         let name = row.name; //.ok_or(Status::internal("Missing name"))?;
                         let last_watered = row.last_watered; //.ok_or(Status::internal("Missing last_watered"))?;
                         let last_health_check = row.last_health_check; //.ok_or(Status::internal("Missing last_health_check"))?;
@@ -217,7 +225,7 @@ impl PlantService for StorePlant {
                         println!("{} is getting a push", sku);
 
                         Ok::<_, Status>(Plant {
-                            identifier: Some(PlantIdentifier { sku }),
+                            identifier: Some(PlantIdentifier { sku, device_identifier }),
                             information: Some(PlantInformation {
                                 name,
                                 last_watered,
@@ -239,6 +247,4 @@ impl PlantService for StorePlant {
             ))),
         }
     }
-    
-
 }

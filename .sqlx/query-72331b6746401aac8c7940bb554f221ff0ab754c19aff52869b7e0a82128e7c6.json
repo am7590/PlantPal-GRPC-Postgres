@@ -27,6 +27,11 @@
         "ordinal": 4,
         "name": "last_identification",
         "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "device_identifier",
+        "type_info": "Varchar"
       }
     ],
     "parameters": {
@@ -35,6 +40,7 @@
       ]
     },
     "nullable": [
+      true,
       true,
       true,
       true,

@@ -4,14 +4,16 @@
 pub struct Plant {
     #[prost(message, optional, tag = "1")]
     pub identifier: ::core::option::Option<PlantIdentifier>,
-    #[prost(message, optional, tag = "3")]
+    #[prost(message, optional, tag = "2")]
     pub information: ::core::option::Option<PlantInformation>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlantIdentifier {
-    #[prost(string, tag = "2")]
+    #[prost(string, tag = "1")]
     pub sku: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub device_identifier: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
