@@ -3,6 +3,7 @@ use futures_util::io::Empty;
 use sqlx_postgres::{PgPool, PgPoolOptions};
 use std::borrow::BorrowMut;
 use std::pin::Pin;
+use std::ptr::null;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, Mutex};
@@ -10,8 +11,11 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::{Request, Response, Status};
 use sqlx;
 use chrono::{DateTime, TimeZone, Utc};
-use crate::plant::{PlantInformation, ListOfPlants, self};
+use crate::plant::{
+    HealthCheckInformation, HistoricalProbabilities, Probabilities, ListOfPlants, PlantInformation, 
+};
 
+use sqlx::Error;
 
 mod push;
 
@@ -125,14 +129,14 @@ impl PlantService for StorePlant {
         let identifier = request.into_inner();
         let sku = identifier.sku;
         let device_identifier = identifier.device_identifier;
-
+    
         let result = sqlx::query!(
-            "SELECT * FROM plants WHERE sku = $1",
+            "SELECT sku, name, last_watered, last_health_check, last_identification, device_identifier, identifiedspeciesname FROM plants WHERE sku = $1",
             sku,
         )
         .fetch_one(&self.pool)
         .await;
-
+    
         match result {
             Ok(row) => {
                 let plant = Plant {
@@ -142,9 +146,10 @@ impl PlantService for StorePlant {
                         last_watered: row.last_watered,
                         last_health_check: row.last_health_check,
                         last_identification: row.last_identification,
+                        identified_species_name: row.identifiedspeciesname,
                     }),
                 };
-
+    
                 Ok(Response::new(plant))
             }
             Err(err) => Err(Status::internal(format!("Failed to get plant from the database: {}", err))),
@@ -168,12 +173,15 @@ impl PlantService for StorePlant {
         let last_watered = information.last_watered;
         let last_health_check = information.last_health_check;
         let last_identification = information.last_identification;
+        let identified_species_name = information.identified_species_name;
+
     
         let result = sqlx::query!(
-            "UPDATE plants SET last_watered = $1, last_health_check = $2, last_identification = $3 WHERE sku = $4",
-            last_watered,
-            last_health_check,
-            last_identification,
+            "UPDATE plants SET last_watered = $1, last_health_check = $2, last_identification = $3, identifiedspeciesname = $4 WHERE sku = $5",
+            information.last_watered,
+            information.last_health_check,
+            information.last_identification,
+            identified_species_name,
             sku,
         )
         .execute(&self.pool)
@@ -221,6 +229,7 @@ impl PlantService for StorePlant {
                         let last_watered = row.last_watered; //.ok_or(Status::internal("Missing last_watered"))?;
                         let last_health_check = row.last_health_check; //.ok_or(Status::internal("Missing last_health_check"))?;
                         let last_identification = row.last_identification; //.ok_or(Status::internal("Missing last_identification"))?;
+                        let identified_species_name = None;
 
                         println!("{} is getting a push", sku);
 
@@ -231,6 +240,7 @@ impl PlantService for StorePlant {
                                 last_watered,
                                 last_health_check,
                                 last_identification,
+                                identified_species_name,
                             }),
                         })
                     })
@@ -246,5 +256,51 @@ impl PlantService for StorePlant {
                 err
             ))),
         }
+    }
+
+    async fn identification_request(
+        &self,
+        request: Request<PlantIdentifier>,
+    ) -> Result<Response<PlantInformation>, Status> {
+        let _identifier = request.into_inner();
+
+        // Return dummy species name as identification information
+        let identification_information = PlantInformation {
+            name: Some("Dummy Plant Name".to_string()),
+            last_watered: Some(1617948000), // Example timestamp
+            last_health_check: Some(1617948000), // Example timestamp
+            last_identification: Some(1617948000), // Example timestamp
+            identified_species_name: Some("Plantae".to_string()),
+        };
+
+        Ok(Response::new(identification_information))
+    }
+
+    // Responds with dummy health historical data based on the updated proto definition
+    async fn health_check_request(
+        &self,
+        request: Request<PlantIdentifier>,
+    ) -> Result<Response<HealthCheckInformation>, Status> {
+        let _identifier = request.into_inner();
+
+        // Return dummy health historical data
+        let historical_probabilities = HistoricalProbabilities {
+            probabilities: vec![
+                Probabilities {
+                    id: "1".to_string(),
+                    name: "Good Health".to_string(),
+                    probability: 0.95,
+                    date: 1617948000, // Example timestamp
+                },
+                // ... add more historical data if necessary
+            ],
+        };
+
+        let health_check_information = HealthCheckInformation {
+            probability: 0.95,
+            historical_probabilities: Some(historical_probabilities), // Note the use of Some() to match the Option type in proto
+        };
+
+        Ok(Response::new(health_check_information))
     }
 }

@@ -1,4 +1,3 @@
-/// TODO: get user device ID; push token
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Plant {
@@ -26,6 +25,8 @@ pub struct PlantInformation {
     pub last_health_check: ::core::option::Option<i64>,
     #[prost(int64, optional, tag = "4")]
     pub last_identification: ::core::option::Option<i64>,
+    #[prost(string, optional, tag = "5")]
+    pub identified_species_name: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -52,6 +53,33 @@ pub struct PlantUpdateResponse {
 pub struct ListOfPlants {
     #[prost(message, repeated, tag = "1")]
     pub plants: ::prost::alloc::vec::Vec<Plant>,
+}
+/// Health check info
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HealthCheckInformation {
+    #[prost(double, tag = "1")]
+    pub probability: f64,
+    #[prost(message, optional, tag = "2")]
+    pub historical_probabilities: ::core::option::Option<HistoricalProbabilities>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HistoricalProbabilities {
+    #[prost(message, repeated, tag = "1")]
+    pub probabilities: ::prost::alloc::vec::Vec<Probabilities>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Probabilities {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(double, tag = "3")]
+    pub probability: f64,
+    #[prost(int64, tag = "4")]
+    pub date: i64,
 }
 /// Generated client implementations.
 pub mod plant_service_client {
@@ -122,7 +150,7 @@ pub mod plant_service_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
-        /// Insert item
+        /// Create plant
         pub async fn add(
             &mut self,
             request: impl tonic::IntoRequest<super::Plant>,
@@ -140,7 +168,7 @@ pub mod plant_service_client {
             let path = http::uri::PathAndQuery::from_static("/plant.PlantService/Add");
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Remove item(s) from the inventory
+        /// Remove plant
         pub async fn remove(
             &mut self,
             request: impl tonic::IntoRequest<super::PlantIdentifier>,
@@ -160,7 +188,7 @@ pub mod plant_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Get a singular item's info
+        /// Get plant
         pub async fn get(
             &mut self,
             request: impl tonic::IntoRequest<super::PlantIdentifier>,
@@ -178,7 +206,7 @@ pub mod plant_service_client {
             let path = http::uri::PathAndQuery::from_static("/plant.PlantService/Get");
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// / Get a list of plants that need to be watered
+        /// Get a list of plants that need to be watered (for APNs microservice)
         pub async fn get_watered(
             &mut self,
             request: impl tonic::IntoRequest<()>,
@@ -198,7 +226,7 @@ pub mod plant_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Increase/decrease an item's stock quantity
+        /// Update plant schedule/health check/id
         pub async fn update_plant(
             &mut self,
             request: impl tonic::IntoRequest<super::PlantUpdateRequest>,
@@ -218,6 +246,45 @@ pub mod plant_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        /// Caching
+        pub async fn identification_request(
+            &mut self,
+            request: impl tonic::IntoRequest<super::PlantIdentifier>,
+        ) -> Result<tonic::Response<super::PlantInformation>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/plant.PlantService/IdentificationRequest",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        pub async fn health_check_request(
+            &mut self,
+            request: impl tonic::IntoRequest<super::PlantIdentifier>,
+        ) -> Result<tonic::Response<super::HealthCheckInformation>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/plant.PlantService/HealthCheckRequest",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -227,31 +294,40 @@ pub mod plant_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with PlantServiceServer.
     #[async_trait]
     pub trait PlantService: Send + Sync + 'static {
-        /// Insert item
+        /// Create plant
         async fn add(
             &self,
             request: tonic::Request<super::Plant>,
         ) -> Result<tonic::Response<super::PlantResponse>, tonic::Status>;
-        /// Remove item(s) from the inventory
+        /// Remove plant
         async fn remove(
             &self,
             request: tonic::Request<super::PlantIdentifier>,
         ) -> Result<tonic::Response<super::PlantResponse>, tonic::Status>;
-        /// Get a singular item's info
+        /// Get plant
         async fn get(
             &self,
             request: tonic::Request<super::PlantIdentifier>,
         ) -> Result<tonic::Response<super::Plant>, tonic::Status>;
-        /// / Get a list of plants that need to be watered
+        /// Get a list of plants that need to be watered (for APNs microservice)
         async fn get_watered(
             &self,
             request: tonic::Request<()>,
         ) -> Result<tonic::Response<super::ListOfPlants>, tonic::Status>;
-        /// Increase/decrease an item's stock quantity
+        /// Update plant schedule/health check/id
         async fn update_plant(
             &self,
             request: tonic::Request<super::PlantUpdateRequest>,
         ) -> Result<tonic::Response<super::PlantUpdateResponse>, tonic::Status>;
+        /// Caching
+        async fn identification_request(
+            &self,
+            request: tonic::Request<super::PlantIdentifier>,
+        ) -> Result<tonic::Response<super::PlantInformation>, tonic::Status>;
+        async fn health_check_request(
+            &self,
+            request: tonic::Request<super::PlantIdentifier>,
+        ) -> Result<tonic::Response<super::HealthCheckInformation>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct PlantServiceServer<T: PlantService> {
@@ -485,6 +561,86 @@ pub mod plant_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = UpdatePlantSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/plant.PlantService/IdentificationRequest" => {
+                    #[allow(non_camel_case_types)]
+                    struct IdentificationRequestSvc<T: PlantService>(pub Arc<T>);
+                    impl<
+                        T: PlantService,
+                    > tonic::server::UnaryService<super::PlantIdentifier>
+                    for IdentificationRequestSvc<T> {
+                        type Response = super::PlantInformation;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::PlantIdentifier>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).identification_request(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = IdentificationRequestSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/plant.PlantService/HealthCheckRequest" => {
+                    #[allow(non_camel_case_types)]
+                    struct HealthCheckRequestSvc<T: PlantService>(pub Arc<T>);
+                    impl<
+                        T: PlantService,
+                    > tonic::server::UnaryService<super::PlantIdentifier>
+                    for HealthCheckRequestSvc<T> {
+                        type Response = super::HealthCheckInformation;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::PlantIdentifier>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).health_check_request(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = HealthCheckRequestSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

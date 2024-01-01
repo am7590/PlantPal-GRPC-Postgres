@@ -19,8 +19,8 @@ mod plant_proto {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
    dotenv().ok();
    let port = std::env::var("PORT").unwrap_or(String::from("8080"));
-   let addr = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap();
-//    let addr = "127.0.0.1:9001".parse()?;
+   // let addr = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap();
+   let addr = "127.0.0.1:9001".parse()?;
    let database_url = "postgres://aqbmkgzhbwtamx:76d2f99d8b483c20682f648d4e82e30564e756d8503eeda43d99453bcf182695@ec2-52-206-14-156.compute-1.amazonaws.com:5432/d3ruob2eu9kscb";
    let inventory = StorePlant::new(database_url).await?;
 

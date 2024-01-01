@@ -3,23 +3,28 @@ package plant;
 import "google/protobuf/empty.proto";
 
 service PlantService {
-    // Insert item
-    rpc Add(Plant) returns (PlantResponse);  // add plant
+    // Create plant
+    rpc Add(Plant) returns (PlantResponse); 
 
-    // Remove item(s) from the inventory
-    rpc Remove(PlantIdentifier) returns (PlantResponse);  // remove plant
+    // Remove plant
+    rpc Remove(PlantIdentifier) returns (PlantResponse);  
 
-    // Get a singular item's info
-    rpc Get(PlantIdentifier) returns (Plant);  // get plant health check/id 
+    // Get plant 
+    rpc Get(PlantIdentifier) returns (Plant);  
 
-    /// Get a list of plants that need to be watered
+    // Get a list of plants that need to be watered (for APNs microservice)
     rpc GetWatered(google.protobuf.Empty) returns (ListOfPlants);
 
-    // Increase/decrease an item's stock quantity
-    rpc UpdatePlant(PlantUpdateRequest) returns (PlantUpdateResponse);  // update plant schedule/health check/id
+    // Update plant schedule/health check/id
+    rpc UpdatePlant(PlantUpdateRequest) returns (PlantUpdateResponse);  
+    
+    // Caching
+    rpc IdentificationRequest(PlantIdentifier) returns (PlantInformation);
+
+    rpc HealthCheckRequest(PlantIdentifier) returns (HealthCheckInformation);
 }
 
-// TODO: get user device ID; push token
+
 message Plant {
     PlantIdentifier identifier = 1;
     optional PlantInformation information = 2;
@@ -35,6 +40,7 @@ message PlantInformation {
     optional int64 lastWatered = 2;
     optional int64 lastHealthCheck = 3;
     optional int64 lastIdentification = 4;
+    optional string identifiedSpeciesName = 5;
 }
 
 message PlantUpdateRequest {
@@ -52,4 +58,21 @@ message PlantUpdateResponse {
 
 message ListOfPlants {
     repeated Plant plants = 1;
+}
+
+// Health check info
+message HealthCheckInformation {
+    double probability = 1;
+    HistoricalProbabilities historicalProbabilities = 2;
+}
+
+message HistoricalProbabilities {
+    repeated Probabilities probabilities = 1;
+}
+
+message Probabilities {
+    string id = 1;
+    string name = 2;
+    double probability = 3;
+    int64 date = 4;
 }
