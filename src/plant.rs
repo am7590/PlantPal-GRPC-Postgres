@@ -57,6 +57,20 @@ pub struct ListOfPlants {
 /// Health check info
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HealthCheckDataRequest {
+    #[prost(message, optional, tag = "1")]
+    pub identifier: ::core::option::Option<PlantIdentifier>,
+    #[prost(string, tag = "2")]
+    pub health_check_information: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HealthCheckDataResponse {
+    #[prost(string, tag = "1")]
+    pub status: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HealthCheckInformation {
     #[prost(double, tag = "1")]
     pub probability: f64,
@@ -226,7 +240,7 @@ pub mod plant_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        /// Update plant schedule/health check/id
+        /// Update plant schedule/health check/id time
         pub async fn update_plant(
             &mut self,
             request: impl tonic::IntoRequest<super::PlantUpdateRequest>,
@@ -243,6 +257,26 @@ pub mod plant_service_client {
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/plant.PlantService/UpdatePlant",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        /// Save JSON health check
+        pub async fn save_health_check_data(
+            &mut self,
+            request: impl tonic::IntoRequest<super::HealthCheckDataRequest>,
+        ) -> Result<tonic::Response<super::HealthCheckDataResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/plant.PlantService/SaveHealthCheckData",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
@@ -314,11 +348,16 @@ pub mod plant_service_server {
             &self,
             request: tonic::Request<()>,
         ) -> Result<tonic::Response<super::ListOfPlants>, tonic::Status>;
-        /// Update plant schedule/health check/id
+        /// Update plant schedule/health check/id time
         async fn update_plant(
             &self,
             request: tonic::Request<super::PlantUpdateRequest>,
         ) -> Result<tonic::Response<super::PlantUpdateResponse>, tonic::Status>;
+        /// Save JSON health check
+        async fn save_health_check_data(
+            &self,
+            request: tonic::Request<super::HealthCheckDataRequest>,
+        ) -> Result<tonic::Response<super::HealthCheckDataResponse>, tonic::Status>;
         /// Caching
         async fn identification_request(
             &self,
@@ -561,6 +600,46 @@ pub mod plant_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = UpdatePlantSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/plant.PlantService/SaveHealthCheckData" => {
+                    #[allow(non_camel_case_types)]
+                    struct SaveHealthCheckDataSvc<T: PlantService>(pub Arc<T>);
+                    impl<
+                        T: PlantService,
+                    > tonic::server::UnaryService<super::HealthCheckDataRequest>
+                    for SaveHealthCheckDataSvc<T> {
+                        type Response = super::HealthCheckDataResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::HealthCheckDataRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).save_health_check_data(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = SaveHealthCheckDataSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

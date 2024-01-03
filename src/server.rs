@@ -4,15 +4,22 @@ use sqlx_postgres::{PgPool, PgPoolOptions};
 use std::borrow::BorrowMut;
 use std::pin::Pin;
 use std::ptr::null;
+use std::string;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::{mpsc, Mutex};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::{Request, Response, Status};
 use sqlx;
+use sqlx::Row;
+use serde_json::{Value, json};
+use serde::{Serialize, Deserialize};
 use chrono::{DateTime, TimeZone, Utc};
+use crate::plant::{HealthCheckDataRequest, HealthCheckDataResponse};
+use serde_json::Value as JsonValue;
+
 use crate::plant::{
-    HealthCheckInformation, HistoricalProbabilities, Probabilities, ListOfPlants, PlantInformation, 
+    HealthCheckInformation, HistoricalProbabilities, Probabilities, ListOfPlants, PlantInformation 
 };
 
 use sqlx::Error;
@@ -40,6 +47,11 @@ impl StorePlant {
         let pool = PgPoolOptions::new()
             .connect(database_url)
             .await?;
+        // let result = sqlx::query!(
+        //     "ALTER TABLE health_check ADD UNIQUE (sku);"
+        // )
+        // .execute(&pool)
+        // .await;
 
         Ok(StorePlant { pool })
     }
@@ -276,31 +288,223 @@ impl PlantService for StorePlant {
         Ok(Response::new(identification_information))
     }
 
-    // Responds with dummy health historical data based on the updated proto definition
+    // Responds with health historical data based on the updated proto definition
     async fn health_check_request(
         &self,
         request: Request<PlantIdentifier>,
     ) -> Result<Response<HealthCheckInformation>, Status> {
-        let _identifier = request.into_inner();
-
-        // Return dummy health historical data
-        let historical_probabilities = HistoricalProbabilities {
-            probabilities: vec![
-                Probabilities {
-                    id: "1".to_string(),
-                    name: "Good Health".to_string(),
-                    probability: 0.95,
-                    date: 1617948000, // Example timestamp
-                },
-                // ... add more historical data if necessary
-            ],
-        };
-
-        let health_check_information = HealthCheckInformation {
-            probability: 0.95,
-            historical_probabilities: Some(historical_probabilities), // Note the use of Some() to match the Option type in proto
-        };
-
-        Ok(Response::new(health_check_information))
+        let identifier = request.into_inner();
+        let sku = identifier.sku;
+        let device_identifier = identifier.device_identifier;
+    
+        let health_check_result = sqlx::query!(
+            "SELECT health_check_info FROM health_check WHERE sku = $1 AND device_identifier = $2",
+            sku,
+            device_identifier
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| Status::internal(format!("Database error: {}", e)))?;
+    
+        match health_check_result {
+            Some(result) => {
+                if let Some(info) = result.health_check_info {
+                    // Clone the info into a String
+                    let info_string = info.clone();
+    
+                    // Deserialize the JSON string into a Value
+                    let health_check_json: JsonValue = serde_json::from_str(info_string.as_str().unwrap_or("default string"))
+                        .map_err(|e| Status::internal(format!("Failed to parse JSON: {}", e)))?;
+    
+                    let probability = health_check_json["probability"].as_f64()
+                        .ok_or(Status::internal("JSON does not contain 'probability' field"))?;
+    
+                    let historical_probabilities = health_check_json["historicalProbabilities"]
+                        .as_array()
+                        .ok_or(Status::internal("JSON does not contain 'historicalProbabilities' array"))?
+                        .iter()
+                        .map(|prob| {
+                            let id = prob["id"].as_str()
+                                .ok_or(Status::internal("Missing 'id' in probabilities"))?
+                                .to_owned();
+                            let name = prob["name"].as_str()
+                                .ok_or(Status::internal("Missing 'name' in probabilities"))?
+                                .to_owned();
+                            let probability = prob["probability"].as_f64()
+                                .ok_or(Status::internal("Missing 'probability' in probabilities"))?;
+                            let date = prob["date"].as_i64()
+                                .ok_or(Status::internal("Missing 'date' in probabilities"))?;
+    
+                            Ok(Probabilities { id, name, probability, date })
+                        })
+                        .collect::<Result<Vec<_>, Status>>()?;
+    
+                    let health_check_info = HealthCheckInformation {
+                        probability,
+                        historical_probabilities: Some(HistoricalProbabilities { probabilities: historical_probabilities }),
+                    };
+    
+                    Ok(Response::new(health_check_info))
+                } else {
+                    Err(Status::internal("No health check data available"))
+                }
+            },
+            None => {
+                Err(Status::not_found("No health check data found for the specified plant"))
+            }
+        }
     }
+
+    // async fn save_health_check_data(
+    //     &self,
+    //     request: Request<HealthCheckDataRequest>,
+    // ) -> Result<Response<HealthCheckDataResponse>, Status> {
+    //     let data_request = request.into_inner();
+    //     let plant_identifier = data_request.identifier.unwrap();
+    //     let sku = plant_identifier.sku;
+    //     let device_identifier = plant_identifier.device_identifier;
+    //     let health_check_info = data_request.health_check_information;
+    
+    //     // Convert health check info from String to JSON
+    //     let health_check_json: JsonValue = serde_json::from_str(&health_check_info)
+    //         .map_err(|e| Status::internal(format!("Failed to parse JSON: {}", e)))?;
+    
+    //     // Upsert health check data using the SKU and device identifier
+    //     let upsert_result = sqlx::query!(
+    //         "INSERT INTO health_check (sku, device_identifier, health_check_info) VALUES ($1, $2, $3)
+    //         ON CONFLICT (sku) DO UPDATE SET health_check_info = EXCLUDED.health_check_info",
+    //         sku,
+    //         device_identifier,
+    //         health_check_json
+    //     )
+    //     .execute(&self.pool)
+    //     .await
+    //     .map_err(|e| Status::internal(format!("Failed to upsert health check data: {}", e)))?;
+    
+    //     Ok(Response::new(HealthCheckDataResponse {
+    //         status: "success".into(),
+    //     }))
+    // }
+
+    async fn save_health_check_data(
+        &self,
+        request: Request<HealthCheckDataRequest>,
+    ) -> Result<Response<HealthCheckDataResponse>, Status> {
+        let data_request = request.into_inner();
+        let plant_identifier = data_request.identifier.unwrap();
+        let sku = plant_identifier.sku;
+        let device_identifier = plant_identifier.device_identifier;
+        let health_check_info_str = data_request.health_check_information;
+    
+        // Parse the health check information string into JSON
+        let health_check_info_json: serde_json::Value = serde_json::from_str(&health_check_info_str)
+            .map_err(|e| Status::internal(format!("Failed to parse JSON: {}", e)))?;
+    
+        // Check if an entry with the given SKU already exists
+        let existing_entry = sqlx::query!(
+            "SELECT health_check_info FROM health_check WHERE sku = $1",
+            sku
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| Status::internal(format!("Database query error: {}", e)))?;
+    
+        let new_historical_entry = json!({
+            "id": "new_entry_id", // Generate or fetch an appropriate ID
+            "name": "new_entry_name", // Provide a meaningful name
+            "probability": health_check_info_json["probability"],
+            "date": chrono::Utc::now().timestamp()
+        });
+    
+        if let Some(existing_entry) = existing_entry {
+            // Parse the existing entry's health check info
+            let existing_info_str = existing_entry.health_check_info.unwrap_or_default().to_string();
+            let mut existing_data: serde_json::Value = serde_json::from_str(&existing_info_str)
+                .map_err(|e| Status::internal(format!("Failed to parse existing JSON: {}", e)))?;
+
+            // Append the new entry to the historical data
+            existing_data["historicalProbabilities"].as_array_mut()
+                .ok_or(Status::internal("Invalid historicalProbabilities format"))?
+                .push(new_historical_entry);
+    
+            // Update the entry in the database
+            let updated_json_str = serde_json::to_string(&existing_data).unwrap();
+            let updated_json_value = serde_json::Value::String(updated_json_str);
+            sqlx::query!(
+                "UPDATE health_check SET health_check_info = $1 WHERE sku = $2",
+                updated_json_value,
+                sku
+            )
+            .execute(&self.pool)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to update health check data: {}", e)))?;
+        } else {
+            // Create new entry for first health check
+            let new_data = serde_json::json!({
+                "probability": health_check_info_json["probability"],
+                "historicalProbabilities": [new_historical_entry],
+            });
+            let new_json_str = serde_json::to_string(&new_data).unwrap();
+            let new_json_str = serde_json::to_string(&new_data).unwrap();
+            let new_json_value = serde_json::Value::String(new_json_str);
+            sqlx::query!(
+                "INSERT INTO health_check (sku, device_identifier, health_check_info) VALUES ($1, $2, $3)",
+                sku,
+                device_identifier,
+                new_json_value
+            )
+            .execute(&self.pool)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to insert health check data: {}", e)))?;
+        }
+    
+        Ok(Response::new(HealthCheckDataResponse {
+            status: "success".into(),
+        }))
+    }
+    
+      
+}
+
+struct HealthCheckData {
+    health_check_info: serde_json::Value,  // JSON
+}
+
+fn convert_json_to_health_check_info(json: serde_json::Value) -> Result<HealthCheckInformation, Status> {
+    print!("{}", json.to_string());
+    
+    let probability = json.get("probability")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| Status::internal("Missing probability"))?;
+
+    // Extract the historicalProbabilities from the JSON
+    let historical_probabilities_json = json.get("historicalProbabilities")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| Status::internal("Missing historicalProbabilities"))?;
+
+    let probabilities = historical_probabilities_json.iter().map(|prob| {
+        let id = prob.get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+        let name = prob.get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+        let probability = prob.get("probability")
+            .and_then(|v| v.as_f64())
+            .ok_or_else(|| Status::internal("Missing probability in historical data"))?;
+        let date = prob.get("date")
+            .and_then(|v| v.as_i64())
+            .unwrap_or_default();
+
+        Ok(Probabilities { id, name, probability, date })
+    }).collect::<Result<Vec<_>, Status>>()?;
+
+    let health_check_info = HealthCheckInformation {
+        probability,
+        historical_probabilities: Some(HistoricalProbabilities { probabilities }),
+    };
+
+    Ok(health_check_info)
 }
