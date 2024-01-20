@@ -85,6 +85,14 @@ pub struct HistoricalProbabilities {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SimilarImage {
+    #[prost(string, tag = "1")]
+    pub url: ::prost::alloc::string::String,
+    #[prost(double, tag = "2")]
+    pub similarity: f64,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Probabilities {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,

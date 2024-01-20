@@ -11,13 +11,11 @@ use tokio::sync::{mpsc, Mutex};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::{Request, Response, Status};
 use sqlx;
-use sqlx::Row;
 use serde_json::{Value, json};
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, TimeZone, Utc};
 use crate::plant::{HealthCheckDataRequest, HealthCheckDataResponse};
 use serde_json::Value as JsonValue;
-
 use crate::plant::{
     HealthCheckInformation, HistoricalProbabilities, Probabilities, ListOfPlants, PlantInformation 
 };
@@ -339,12 +337,12 @@ impl PlantService for StorePlant {
                         })
                         .collect::<Result<Vec<_>, Status>>()?;
     
-                    let health_check_info = HealthCheckInformation {
-                        probability,
-                        historical_probabilities: Some(HistoricalProbabilities { probabilities: historical_probabilities }),
-                    };
+                        let health_check_info = HealthCheckInformation {
+                            probability,
+                            historical_probabilities: Some(HistoricalProbabilities{probabilities:historical_probabilities}),
+                        };
     
-                    Ok(Response::new(health_check_info))
+                Ok(Response::new(health_check_info))
                 } else {
                     Err(Status::internal("No health check data available"))
                 }
@@ -354,6 +352,8 @@ impl PlantService for StorePlant {
             }
         }
     }
+    
+    
 
     // async fn save_health_check_data(
     //     &self,
@@ -471,7 +471,6 @@ struct HealthCheckData {
 }
 
 fn convert_json_to_health_check_info(json: serde_json::Value) -> Result<HealthCheckInformation, Status> {
-    print!("{}", json.to_string());
     
     let probability = json.get("probability")
         .and_then(|v| v.as_f64())
@@ -483,20 +482,11 @@ fn convert_json_to_health_check_info(json: serde_json::Value) -> Result<HealthCh
         .ok_or_else(|| Status::internal("Missing historicalProbabilities"))?;
 
     let probabilities = historical_probabilities_json.iter().map(|prob| {
-        let id = prob.get("id")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default()
-            .to_string();
-        let name = prob.get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default()
-            .to_string();
-        let probability = prob.get("probability")
-            .and_then(|v| v.as_f64())
-            .ok_or_else(|| Status::internal("Missing probability in historical data"))?;
-        let date = prob.get("date")
-            .and_then(|v| v.as_i64())
-            .unwrap_or_default();
+        let id = prob.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+        let name = prob.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+        let probability = prob.get("probability").and_then(|v| v.as_f64())
+            .ok_or(Status::internal("Missing probability in historical data"))?;
+        let date = prob.get("date").and_then(|v| v.as_i64()).unwrap_or_default();
 
         Ok(Probabilities { id, name, probability, date })
     }).collect::<Result<Vec<_>, Status>>()?;
@@ -505,6 +495,8 @@ fn convert_json_to_health_check_info(json: serde_json::Value) -> Result<HealthCh
         probability,
         historical_probabilities: Some(HistoricalProbabilities { probabilities }),
     };
-
+    
+    println!("{:?}", health_check_info);
+    
     Ok(health_check_info)
 }
