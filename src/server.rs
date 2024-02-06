@@ -63,6 +63,7 @@ impl PlantService for StorePlant {
         request: Request<Plant>,
     ) -> Result<Response<PlantResponse>, Status> {
         let item = request.into_inner();
+        println!("add: Received request with {:?}", item);
 
         let sku = match item.identifier.as_ref() {
             Some(id) if id.sku == "" => return Err(Status::invalid_argument(EMPTY_SKU_ERR)),
@@ -99,13 +100,16 @@ impl PlantService for StorePlant {
 
         match result {
             Ok(_) => {
-                println!("Add item");
+                println!("add: success\n");
                 // let _ = push::apns::run().await;
                 Ok(Response::new(PlantResponse {
                     status: "success".into(),
                 }))
             }
-            Err(err) => Err(Status::internal(format!("Failed to add item to the database: {}", err))),
+            Err(err) => {
+                println!("add: error {:?}", err);
+                Err(Status::internal(format!("Failed to add item to the database: {}\n", err)))
+            },
         }
     }
 
@@ -117,6 +121,8 @@ impl PlantService for StorePlant {
         let identifier = request.into_inner();
         let sku = identifier.sku;
 
+        println!("remove: Received request with sku: {}", sku);
+
         let result = sqlx::query!(
             "DELETE FROM plants WHERE sku = $1",
             sku,
@@ -126,12 +132,15 @@ impl PlantService for StorePlant {
 
         match result {
             Ok(_) => {
-                println!("Remove plant");
+                println!("remove: success\n");
                 Ok(Response::new(PlantResponse {
                     status: "success".into(),
                 }))
             }
-            Err(err) => Err(Status::internal(format!("Failed to remove plant from the database: {}", err))),
+            Err(err) => {
+                println!("remove: error {:?}\n", err);
+                return Err(Status::internal(format!("Failed to remove plant from the database: {}", err)))
+            },
         }
     }
 
@@ -159,10 +168,13 @@ impl PlantService for StorePlant {
                         identified_species_name: row.identifiedspeciesname,
                     }),
                 };
-    
+                println!("get: success\n");
                 Ok(Response::new(plant))
             }
-            Err(err) => Err(Status::internal(format!("Failed to get plant from the database: {}", err))),
+            Err(err) => {
+                println!("get: error {:?}", err);
+                Err(Status::internal(format!("Failed to get plant from the database: {}\n", err)))
+            },
         }
     }
 
@@ -204,7 +216,10 @@ impl PlantService for StorePlant {
                     status: "success".into(),
                 }))
             }
-            Err(err) => Err(Status::internal(format!("Failed to update plant in the database: {}", err))),
+            Err(err) => {
+                println!("update_plant: error {:?}\n", err);
+                Err(Status::internal(format!("Failed to update plant in the database: {}", err)))
+            },
         }
     }
 
@@ -261,10 +276,12 @@ impl PlantService for StorePlant {
     
                 Ok(Response::new(list_of_plants))
             }
-            Err(err) => Err(Status::internal(format!(
+            Err(err) => {
+                println!("get_watered: error {:?}\n", err);
+                Err(Status::internal(format!(
                 "Failed to get plants from the database: {}",
                 err
-            ))),
+            )))},
         }
     }
 
@@ -273,6 +290,7 @@ impl PlantService for StorePlant {
         request: Request<PlantIdentifier>,
     ) -> Result<Response<PlantInformation>, Status> {
         let _identifier = request.into_inner();
+        println!("identification_request: Received request for sku: {}", _identifier.sku);
 
         // Return dummy species name as identification information
         let identification_information = PlantInformation {
@@ -282,6 +300,8 @@ impl PlantService for StorePlant {
             last_identification: Some(1617948000), // Example timestamp
             identified_species_name: Some("Plantae".to_string()),
         };
+
+        println!("identification_request: Success for sku: {}", _identifier.sku);
 
         Ok(Response::new(identification_information))
     }
@@ -295,6 +315,8 @@ impl PlantService for StorePlant {
         let sku = identifier.sku;
         let device_identifier = identifier.device_identifier;
     
+        println!("health_check_request: Received request for sku: {}, device_identifier: {}", sku, device_identifier);
+
         let health_check_result = sqlx::query!(
             "SELECT health_check_info FROM health_check WHERE sku = $1 AND device_identifier = $2",
             sku,
@@ -341,13 +363,15 @@ impl PlantService for StorePlant {
                             probability,
                             historical_probabilities: Some(HistoricalProbabilities{probabilities:historical_probabilities}),
                         };
-    
+
+                println!("health_check_request: Success for sku: {}", sku);
                 Ok(Response::new(health_check_info))
                 } else {
                     Err(Status::internal("No health check data available"))
                 }
             },
             None => {
+                println!("health_check_request: No data found for sku: {}", sku);
                 Err(Status::not_found("No health check data found for the specified plant"))
             }
         }
@@ -396,6 +420,8 @@ impl PlantService for StorePlant {
         let device_identifier = plant_identifier.device_identifier;
         let health_check_info_str = data_request.health_check_information;
     
+        println!("save_health_check_data: id: {device_identifier} with data: {health_check_info_str}");
+
         // Parse the health check information string into JSON
         let health_check_info_json: serde_json::Value = serde_json::from_str(&health_check_info_str)
             .map_err(|e| Status::internal(format!("Failed to parse JSON: {}", e)))?;
@@ -420,7 +446,10 @@ impl PlantService for StorePlant {
             // Parse the existing entry's health check info
             let existing_info_str = existing_entry.health_check_info.unwrap_or_default().to_string();
             let mut existing_data: serde_json::Value = serde_json::from_str(&existing_info_str)
-                .map_err(|e| Status::internal(format!("Failed to parse existing JSON: {}", e)))?;
+            .map_err(|e| {
+                println!("Failed to parse JSON: {}", e);
+                Status::internal(format!("Failed to parse JSON: {}", e))
+            })?;
 
             // Append the new entry to the historical data
             existing_data["historicalProbabilities"].as_array_mut()
@@ -437,7 +466,10 @@ impl PlantService for StorePlant {
             )
             .execute(&self.pool)
             .await
-            .map_err(|e| Status::internal(format!("Failed to update health check data: {}", e)))?;
+            .map_err(|e| {
+                println!("Failed to parse JSON: {}", e);
+                Status::internal(format!("Failed to parse JSON: {}", e))
+            })?;
         } else {
             // Create new entry for first health check
             let new_data = serde_json::json!({
@@ -455,15 +487,18 @@ impl PlantService for StorePlant {
             )
             .execute(&self.pool)
             .await
-            .map_err(|e| Status::internal(format!("Failed to insert health check data: {}", e)))?;
+            .map_err(|e| {
+                println!("Failed to parse JSON: {}", e);
+                Status::internal(format!("Failed to parse JSON: {}", e))
+            })?;
         }
     
+        println!("save_health_check_data: success");
+
         Ok(Response::new(HealthCheckDataResponse {
             status: "success".into(),
         }))
-    }
-    
-      
+    }  
 }
 
 struct HealthCheckData {

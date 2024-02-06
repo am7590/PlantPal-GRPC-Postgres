@@ -15,9 +15,12 @@ service PlantService {
     // Get a list of plants that need to be watered (for APNs microservice)
     rpc GetWatered(google.protobuf.Empty) returns (ListOfPlants);
 
-    // Update plant schedule/health check/id
+    // Update plant schedule/health check/id time
     rpc UpdatePlant(PlantUpdateRequest) returns (PlantUpdateResponse);  
     
+    // Save JSON health check
+    rpc SaveHealthCheckData(HealthCheckDataRequest) returns (HealthCheckDataResponse);
+
     // Caching
     rpc IdentificationRequest(PlantIdentifier) returns (PlantInformation);
 
@@ -61,6 +64,15 @@ message ListOfPlants {
 }
 
 // Health check info
+message HealthCheckDataRequest {
+    PlantIdentifier identifier = 1;
+    string healthCheckInformation = 2;
+}
+
+message HealthCheckDataResponse {
+    string status = 1;
+}
+
 message HealthCheckInformation {
     double probability = 1;
     HistoricalProbabilities historicalProbabilities = 2;
@@ -68,6 +80,11 @@ message HealthCheckInformation {
 
 message HistoricalProbabilities {
     repeated Probabilities probabilities = 1;
+}
+
+message SimilarImage {
+    string url = 1;
+    double similarity = 2;
 }
 
 message Probabilities {

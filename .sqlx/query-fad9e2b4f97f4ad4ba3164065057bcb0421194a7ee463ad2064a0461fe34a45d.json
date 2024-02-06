@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT health_check_info FROM health_check WHERE sku = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "health_check_info",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "fad9e2b4f97f4ad4ba3164065057bcb0421194a7ee463ad2064a0461fe34a45d"
+}

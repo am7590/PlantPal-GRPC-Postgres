@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE health_check SET health_check_info = $1 WHERE sku = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ffc1743c5ca1952a559b6284fc4e1bfbd28032c54586b7cfb784917d6f0af46a"
+}
